@@ -551,6 +551,47 @@ test('adding a computed property should show up in key iteration',function() {
   ok('foo' in obj, 'foo in obj should pass');
 });
 
+testBoth('diamond dependency chains should be resolved only once', function(get, set){
+  expect(3);
+
+  var obj = {
+    name: {
+      first: 'Yehuda',
+      last: 'Katz'
+    }
+  };
+
+  Ember.defineProperty(obj, 'firstName', Ember.computed(
+    function(key, value) {
+      return get(this, 'name').first;
+    }).property('name')
+  );
+
+  Ember.defineProperty(obj, 'lastName', Ember.computed(
+    function(key, value) {
+      return get(this, 'name').last;
+    }).property('name')
+  );
+
+  Ember.defineProperty(obj, 'fullName', Ember.computed(
+    function(key, value) {
+      return get(this, 'firstName') + ' ' + get(this, 'lastName');
+    }).property('firstName', 'lastName')
+  );
+
+  // this should only get called once, but is called twice
+  // first the fullName is half changed to "Scumbag Katz" the second, correctly, "Scumbag Livsey"
+  Ember.addObserver(obj, 'fullName', function () {
+    equal(get(obj, 'fullName'), 'Scumbag Livsey');
+  });
+
+  equal(get(obj, 'fullName'), 'Yehuda Katz');
+  set(obj, 'name', {first: 'Scumbag', last: 'Livsey'});
+
+  // this passes as by this point everything is fully resolved
+  equal(get(obj, 'fullName'), 'Scumbag Livsey');
+});
+
 
 module('Ember.computed - setter');
 
